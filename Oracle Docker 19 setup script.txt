@@ -1,0 +1,45 @@
+#######run this in git bash in windows 10
+#!/usr/bin/env bash
+set -e
+mkdir /c/Users/sumit/oradata
+ORADATA="/c/Users/sumit/oradata"
+CONTAINER_NAME="ORCL"
+ORACLE_SID="ORCL"
+ORACLE_PDB="ORCLPDB"
+
+mkdir -p "${ORADATA}/scripts"
+
+for dir in audit data diagnostics
+do
+    HOST_DIR="${ORADATA}/${CONTAINER_NAME}/${dir}"
+    VOLUME_NAME="${CONTAINER_NAME}_${dir}"
+
+    mkdir -p "${HOST_DIR}"
+
+    docker volume create \
+        --driver local \
+        --opt type=none \
+        --opt o=bind \
+        --opt "device=${HOST_DIR}" \
+        "${VOLUME_NAME}"
+done
+
+IMAGE_NAME="container-registry.oracle.com/database/enterprise:19.3.0.0"
+
+docker run -d \
+  --name ${CONTAINER_NAME} \
+  --volume ${CONTAINER_NAME}_data:/opt/oracle/oradata \
+  --volume ${CONTAINER_NAME}_diag:/opt/oracle/diag \
+  --volume ${CONTAINER_NAME}_audit:/opt/oracle/admin \
+  --volume ${ORADATA}/scripts:/scripts \
+  -e ORACLE_SID=${ORACLE_SID} \
+  -e ORACLE_PDB=${ORACLE_PDB} \
+  -e ORACLE_PWD=password \
+  -p 1521:1521 \
+  ${IMAGE_NAME}
+
+docker logs -f ${CONTAINER_NAME}
+
+docker stop ORCL
+
+docker start ORCL
